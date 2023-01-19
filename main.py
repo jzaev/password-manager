@@ -2,6 +2,7 @@ from tkinter import *
 from tkinter import messagebox
 import random
 import pyperclip
+import json
 
 
 # ---------------------------- PASSWORD GENERATOR ------------------------------- #
@@ -26,6 +27,7 @@ def generate_password():
 
     password = "".join(password_list)
 
+    password_entry.delete(0, END)
     password_entry.insert(0, password)
     pyperclip.copy(password)
 
@@ -37,23 +39,45 @@ def add_password():
     email_data = email_entry.get()
     password_data = password_entry.get()
 
+    new_data = {site_data: {"email": email_data, "password": password_data}}
+
     if len(site_data) * len(email_data) * len(password_data) == 0:
         messagebox.showerror(title="not filled", message="Fill all fields to save your password.")
         return
-
-    save_ok = messagebox.askquestion(title="Check your data", message=f"Site: {site_data} \n"
-                                                                      f"email: {email_data}\n"
-                                                                      f"pass:{password_data}\n"
-                                                                      f"save this data?")
-
-    if save_ok == "no":
-        return
-
-    with open("passwords.dat", mode="a") as data_file:
-        data_string = f"{site_data} | {email_data} | {password_data} \n"
-        data_file.write(data_string)
+    try:
+        with open("passwords.json", mode="r") as data_file:
+            data = json.load(data_file)
+    except FileNotFoundError:
+        with open("passwords.json", mode="w") as data_file:
+            json.dump(new_data, data_file, indent=4)
+    else:
+        data.update(new_data)
+        with open("passwords.json", mode="w") as data_file:
+            json.dump(data, data_file, indent=4)
+    finally:
         site_entry.delete(0, END)
         password_entry.delete(0, END)
+
+
+def search_password():
+    try:
+        with open("passwords.json", mode="r") as data_file:
+            data = json.load(data_file)
+    except FileNotFoundError:
+        messagebox.showerror(title="No file found", message="No file found")
+        return
+
+    searching_site = site_entry.get()
+    try:
+        login_data = data[searching_site]
+    except KeyError:
+        messagebox.showerror(title="Site data was not found!", message="Site data was not found!")
+        return
+
+    password = login_data["password"]
+    email = login_data["email"]
+    pyperclip.copy(password)
+    messagebox.showinfo(title=f"login data for {searching_site}", message=f"{email} \n{password}")
 
 
 # ---------------------------- UI SETUP ------------------------------- #
@@ -79,24 +103,23 @@ email_label.grid(row=2, column=0)
 password_label = Label(text="Password:", font=("Times New Roman", 14,))
 password_label.grid(row=3, column=0)
 
-generate_button = Button(text="Generate password", command=generate_password)
+search_button = Button(text="Search", command=search_password, width=16)
+search_button.grid(column=2, row=1)
+
+generate_button = Button(text="Generate password", command=generate_password, width=16)
 generate_button.grid(column=2, row=3)
 
 add_button = Button(text="Add", command=add_password, width=36)
 add_button.grid(column=1, row=4, columnspan=2)
 
-site_entry = Entry(width=35)
-site_entry.grid(column=1, row=1, columnspan=2)
-# TODO delete insert
-site_entry.insert(0, "juryzaev.com")
+site_entry = Entry(width=21)
+site_entry.grid(column=1, row=1)
 
-email_entry = Entry(width=35)
+email_entry = Entry(width=40)
 email_entry.grid(column=1, row=2, columnspan=2)
 email_entry.insert(0, "juryzaev@gmail.com")
 
 password_entry = Entry(width=21)
 password_entry.grid(column=1, row=3)
-# TODO delete insert
-password_entry.insert(0, "myPass")
 
 window.mainloop()
